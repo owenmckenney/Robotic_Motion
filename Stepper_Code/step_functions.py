@@ -1,13 +1,6 @@
-from time import sleep
+import time
 import RPi.GPIO as GPIO
-
-direction = 20
-step = 21
-cw = 1
-ccw = 0
-spr = 200
-sleep = 16
-
+GPIO.setwarnings(False)
 
 class Stepper:
 
@@ -26,7 +19,7 @@ class Stepper:
         GPIO.setup(self.dir_pin, GPIO.OUT)
         GPIO.setup(self.step_pin, GPIO.OUT)
         GPIO.setup(self.slp_pin, 1)
-        GPIO.output(direction, cw)
+        GPIO.output(self.dir_pin, self.cw)
 
         GPIO.setup(self.mode_pins, GPIO.OUT)
         resolution = {"Full": (0,0,0),
@@ -35,17 +28,46 @@ class Stepper:
                       "1/8": (1,1,0),
                       "1/16": (0,0,1),
                       "1/32": (1,0,1)}
-        GPIO.output(self.mode_pins, self.step_type) 
+        GPIO.output(self.mode_pins, resolution[self.step_type]) 
 
     def Rotate(self, rotations, d):
-        GPIO.output(self.direction, d)
+        GPIO.output(self.dir_pin, d)
         
-        for x in range(self.spr):
+        for x in range(self.spr * rotations):
             GPIO.output(self.step_pin, GPIO.HIGH)
-            sleep(delay)
+            time.sleep(self.delay)
             GPIO.output(self.step_pin, GPIO.LOW)
-            sleep(delay)
+            time.sleep(self.delay)
+        
+        GPIO.cleanup()
 
-s = Stepper(20, 21, 16, 1600, (1,7,8), "Full")
-s.Rotate(1, 1)
+    def Rotate_Ramp_Up_Down(self, rotations, d):
+        GPIO.output(self.dir_pin, d)
+        accel_point = (self.spr / 4) * rotations
+        accel_delay = self.delay * accel_point
+        
+        
+        for x in range(self.spr * rotations):
+
+            if x < accel_point || x > (self.spr * rotations) - accel_point:
+                GPIO.output(self.step_pin, GPIO.HIGH)
+                time.sleep(accel_delay)
+                GPIO.output(self.step_pin, GPIO.LOW)
+                time.sleep(accel_delay)
+                
+                if x < accel_point:
+                    accel_delay = accel_delay - self.delay
+                else:
+                    accel_delay = accel_delay + self.delay
+            
+            else:
+                GPIO.output(self.step_pin, GPIO.HIGH)
+                time.sleep(self.delay)
+                GPIO.output(self.step_pin, GPIO.LOW)
+                time.sleep(self.delay)
+
+
+
+stepper1 = Stepper(20, 21, 16, 1600, (1,7,8), "Full")
+stepper1.Rotate(1, 1)
 
